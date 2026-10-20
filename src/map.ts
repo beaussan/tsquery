@@ -7,7 +7,17 @@ import { visitEachChild } from 'typescript/ast/visitor';
 import { ast, match, parse, print } from './index.js';
 import { withAPI } from './native-api.js';
 
-/** Transform matching nodes, then print and reparse to restore parent pointers. */
+/**
+ * @public
+ * Transform AST `Nodes` within a `SourceFile` matching a `Selector`. Can be used to do `Node`-based replacement or removal of parts of the input AST.
+ *
+ * The transformed tree is printed and reparsed to restore parent pointers.
+ *
+ * @param sourceFile - the native TypeScript `SourceFile` to be searched.
+ * @param selector - a TSQuery `Selector` (using the [ESQuery selector syntax](https://github.com/estools/esquery)).
+ * @param nodeTransformer - a function to transform matched `Nodes`. Return the original `Node` to leave it unchanged, a new native `Node` to replace it, or `undefined` to remove it. An array of native `Nodes` replaces an element in a node list. Children of a replaced node are not visited.
+ * @returns the transformed and reparsed `SourceFile`.
+ */
 export function map(
   sourceFile: SourceFile,
   selector: string | Selector,
