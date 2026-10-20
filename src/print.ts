@@ -1,40 +1,29 @@
-import type { PrinterOptions } from 'typescript';
-import type { Node, SourceFile } from './index';
+import type { Node, SourceFile } from 'typescript/ast';
+import type { Printer } from 'typescript/sync';
 
-import { EmitHint, NewLineKind, createPrinter, isSourceFile } from 'typescript';
-import { ast } from './index';
+import { isSourceFile } from 'typescript/ast/is';
+import { withAPI } from './native-api.js';
 
-/**
- * @public
- * Print a given `Node` or `SourceFile` to a string, using the default TypeScript printer.
- *
- * @param source - the `Node` or `SourceFile` to print.
- * @param options - any `PrinterOptions`.
- * @returns the printed code
- */
+export type PrinterOptions = Parameters<Printer['printNode']>[1];
+
+/** Print parsed or synthesized native nodes without modifying their positions. */
 export function print(
   source: Node | SourceFile,
   options: PrinterOptions = {}
 ): string {
-  const printer = createPrinter({
-    newLine: NewLineKind.LineFeed,
-    ...options
-  });
-
-  if (!isSourceFile(source)) {
-    const file = ast('');
-    deletePos(source);
-    return printer.printNode(EmitHint.Unspecified, source, file);
+  const supportedOptions = new Set([
+    'preserveSourceNewlines',
+    'neverAsciiEscape',
+    'terminateUnterminatedLiterals'
+  ]);
+  for (const key of Object.keys(options)) {
+    if (!supportedOptions.has(key)) {
+      throw new TypeError(`Unsupported native printer option: ${key}`);
+    }
   }
-
-  return printer.printFile(source).trim();
-}
-
-type WritableNode = {
-  -readonly [Key in keyof Node]: Node[Key];
-};
-
-function deletePos(node: WritableNode) {
-  node.pos = -1;
-  node.forEachChild(deletePos);
+  return withAPI((api) =>
+    isSourceFile(source)
+      ? api.printer.printFile(source, options).trim()
+      : api.printer.printNode(source, options)
+  );
 }
